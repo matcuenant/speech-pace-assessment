@@ -585,14 +585,22 @@ function redrawGauge(wpm) {
   ctx.fillStyle = '#e2e8f0';
   ctx.fill();
 
-  // WPM number (centred in the lower half of the arc)
+  // Current WPM number
   const label    = liveWpm < 1 ? '—' : Math.round(wpm).toString();
   const fontSize = Math.max(16, Math.round(r * 0.28));
   ctx.fillStyle    = '#e2e8f0';
   ctx.font         = `700 ${fontSize}px monospace`;
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, cx, cy - r * 0.38);
+  ctx.fillText(label, cx, cy - r * 0.42);
+
+  // Session average WPM
+  const sessionWpm  = computeSessionWpm();
+  const avgLabel    = sessionWpm > 0 ? `avg ${sessionWpm}` : 'avg —';
+  const avgFontSize = Math.max(10, Math.round(r * 0.14));
+  ctx.fillStyle = '#8892a4';
+  ctx.font      = `${avgFontSize}px monospace`;
+  ctx.fillText(avgLabel, cx, cy - r * 0.18);
 
   ctx.restore();
 }
