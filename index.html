@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Speech Pace Assessment</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- Header -->
+    <header class="header">
+      <h1 class="header__title">Speech Pace Assessment</h1>
+      <p class="header__subtitle">Real-time words-per-minute monitor for presentation dry-runs</p>
+    </header>
+
+    <!-- Controls -->
+    <section class="controls card">
+      <div class="controls__row">
+        <button id="btn-toggle" class="btn btn--primary" aria-label="Start recording">
+          <span class="btn__icon">&#9654;</span>
+          <span class="btn__label">Start</span>
+        </button>
+        <button id="btn-reset" class="btn btn--secondary" aria-label="Reset session">
+          Reset
+        </button>
+      </div>
+
+      <div class="controls__row controls__row--settings">
+        <label class="setting" for="window-size">
+          <span class="setting__label">Window size</span>
+          <div class="setting__input-group">
+            <input
+              id="window-size"
+              class="setting__range"
+              type="range"
+              min="10"
+              max="120"
+              step="5"
+              value="30"
+              aria-valuemin="10"
+              aria-valuemax="120"
+            />
+            <output id="window-size-display" class="setting__value" for="window-size">30 s</output>
+          </div>
+        </label>
+
+        <label class="setting" for="target-wpm">
+          <span class="setting__label">Target WPM</span>
+          <div class="setting__input-group">
+            <input
+              id="target-wpm"
+              class="setting__range"
+              type="range"
+              min="80"
+              max="200"
+              step="5"
+              value="130"
+              aria-valuemin="80"
+              aria-valuemax="200"
+            />
+            <output id="target-wpm-display" class="setting__value" for="target-wpm">130 wpm</output>
+          </div>
+        </label>
+      </div>
+
+      <div id="status-bar" class="status-bar">
+        <span id="status-icon" class="status-bar__icon">&#9679;</span>
+        <span id="status-text" class="status-bar__text">Ready — click Start to begin</span>
+      </div>
+    </section>
+
+    <!-- WPM Gauge -->
+    <section class="gauge-section">
+      <div class="gauge card" id="gauge-card">
+        <div class="gauge__label">Current WPM</div>
+        <div class="gauge__value" id="wpm-display">—</div>
+        <div class="gauge__window-label" id="window-label">last 30 s</div>
+        <div class="gauge__pace-label" id="pace-label"></div>
+      </div>
+
+      <div class="stats card">
+        <div class="stat">
+          <span class="stat__value" id="stat-session-wpm">—</span>
+          <span class="stat__label">Session WPM</span>
+        </div>
+        <div class="stat">
+          <span class="stat__value" id="stat-word-count">0</span>
+          <span class="stat__label">Total words</span>
+        </div>
+        <div class="stat">
+          <span class="stat__value" id="stat-elapsed">0:00</span>
+          <span class="stat__label">Elapsed</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- WPM Chart -->
+    <section class="chart-section card">
+      <div class="chart-header">
+        <span class="chart-title">WPM over time</span>
+        <span class="chart-legend">
+          <span class="legend-item legend-item--actual">Actual</span>
+          <span class="legend-item legend-item--target">Target</span>
+        </span>
+      </div>
+      <canvas id="wpm-chart" class="wpm-chart" aria-label="WPM over time chart"></canvas>
+    </section>
+
+    <!-- Transcript -->
+    <section class="transcript-section card">
+      <div class="transcript-header">
+        <span class="transcript-title">Live transcript</span>
+        <button id="btn-copy" class="btn btn--ghost btn--small">Copy</button>
+      </div>
+      <div id="transcript" class="transcript" aria-live="polite" aria-atomic="false">
+        <span class="transcript__placeholder">Transcript will appear here when recording starts…</span>
+      </div>
+    </section>
+
+    <!-- Browser support warning -->
+    <div id="browser-warning" class="browser-warning hidden" role="alert">
+      &#9888; Your browser does not support the Web Speech API.
+      Please use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> for speech recognition.
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
