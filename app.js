@@ -30,6 +30,7 @@ const statSessionWpm     = document.getElementById('stat-session-wpm');
 const statWordCount      = document.getElementById('stat-word-count');
 const statElapsed        = document.getElementById('stat-elapsed');
 const transcriptEl       = document.getElementById('transcript');
+const langSelect         = document.getElementById('lang-select');
 const browserWarning     = document.getElementById('browser-warning');
 const chartCanvas        = document.getElementById('wpm-chart');
 
@@ -60,6 +61,7 @@ let recognition = null;
 
 let windowSize = parseInt(windowSizeInput.value, 10);   // seconds
 let targetWpm  = parseInt(targetWpmInput.value,  10);   // wpm
+let lang       = langSelect.value;                       // BCP-47 language tag
 
 // ─── Browser support check ────────────────────────────────────────────────────
 
@@ -83,6 +85,10 @@ targetWpmInput.addEventListener('input', () => {
   targetWpm = parseInt(targetWpmInput.value, 10);
   targetWpmDisplay.textContent = `${targetWpm} wpm`;
   redrawChart();
+});
+
+langSelect.addEventListener('change', () => {
+  lang = langSelect.value;
 });
 
 // ─── Main toggle ──────────────────────────────────────────────────────────────
@@ -111,7 +117,7 @@ function startRecording() {
   recognition = new SpeechRecognition();
   recognition.continuous      = true;
   recognition.interimResults  = true;
-  recognition.lang            = 'en-US';
+  recognition.lang            = lang;
   recognition.maxAlternatives = 1;
 
   recognition.onstart = () => {
