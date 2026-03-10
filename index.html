@@ -85,7 +85,8 @@
     <section class="gauge-section">
       <div class="gauge card" id="gauge-card">
         <div class="gauge__label">Current WPM</div>
-        <div class="gauge__value" id="wpm-display">—</div>
+        <canvas id="gauge-canvas" class="gauge__canvas" aria-label="Current WPM gauge"></canvas>
+        <div class="gauge__value visually-hidden" id="wpm-display" aria-live="polite">—</div>
         <div class="gauge__window-label" id="window-label">last 30 s</div>
         <div class="gauge__pace-label" id="pace-label"></div>
       </div>

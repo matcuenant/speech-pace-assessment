@@ -33,6 +33,7 @@ const transcriptEl       = document.getElementById('transcript');
 const langSelect         = document.getElementById('lang-select');
 const browserWarning     = document.getElementById('browser-warning');
 const chartCanvas        = document.getElementById('wpm-chart');
+const gaugeCanvas        = document.getElementById('gauge-canvas');
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -57,11 +58,19 @@ let isRecording = false;
 /** @type {SpeechRecognition|null} */
 let recognition = null;
 
+/** Animated needle position (WPM, interpolated) */
+let needleWpm = 0;
+
+/** Target needle position set each tick */
+let liveWpm = 0;
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 let windowSize = parseInt(windowSizeInput.value, 10);   // seconds
 let targetWpm  = parseInt(targetWpmInput.value,  10);   // wpm
 let lang       = langSelect.value;                       // BCP-47 language tag
+
+const GAUGE_MAX = 300;   // WPM at the right end of the gauge arc
 
 // ─── Browser support check ────────────────────────────────────────────────────
 
@@ -190,8 +199,9 @@ function resetSession() {
   finalTranscript  = '';
   elapsedSeconds   = 0;
 
+  liveWpm = 0;
   wpmDisplay.textContent  = '—';
-  wpmDisplay.className    = 'gauge__value';
+  wpmDisplay.className    = 'gauge__value visually-hidden';
   paceLabel.textContent   = '';
   paceLabel.className     = 'gauge__pace-label';
   gaugeCard.className     = 'gauge card';
@@ -272,16 +282,15 @@ function onTick() {
 // ─── Gauge ────────────────────────────────────────────────────────────────────
 
 function updateGauge(wpm) {
+  liveWpm = wpm;
+  wpmDisplay.textContent = wpm > 0 ? wpm : '—';   // kept for screen readers
+
   if (wpm === 0) {
-    wpmDisplay.textContent  = '—';
-    wpmDisplay.className    = 'gauge__value';
-    paceLabel.textContent   = '';
-    paceLabel.className     = 'gauge__pace-label';
-    gaugeCard.className     = 'gauge card';
+    paceLabel.textContent = '';
+    paceLabel.className   = 'gauge__pace-label';
+    gaugeCard.className   = 'gauge card';
     return;
   }
-
-  wpmDisplay.textContent = wpm;
 
   const ratio = wpm / targetWpm;
   let pace, modifier;
@@ -294,7 +303,6 @@ function updateGauge(wpm) {
     pace = 'Good pace'; modifier = 'ok';
   }
 
-  wpmDisplay.className  = `gauge__value gauge__value--${modifier}`;
   paceLabel.textContent = pace;
   paceLabel.className   = `gauge__pace-label gauge__pace-label--${modifier}`;
   gaugeCard.className   = `gauge card gauge--${modifier}`;
@@ -481,6 +489,120 @@ function setStatus(type, message) {
   if (type === 'active') statusIcon.classList.add('active');
   if (type === 'error')  statusIcon.classList.add('error');
 }
+
+// ─── Half-gauge (canvas) ──────────────────────────────────────────────────────
+
+/** Map a WPM value to its angle on the half-gauge arc.
+ *  Arc runs clockwise from Math.PI (left, 0 WPM) to 2*Math.PI (right, GAUGE_MAX WPM). */
+function wpmToAngle(wpm) {
+  const clamped = Math.max(0, Math.min(wpm, GAUGE_MAX));
+  return Math.PI + (clamped / GAUGE_MAX) * Math.PI;
+}
+
+function redrawGauge(wpm) {
+  const dpr = window.devicePixelRatio || 1;
+  const W   = gaugeCanvas.clientWidth;
+  const H   = gaugeCanvas.clientHeight;
+
+  // Only resize the backing store when the element dimensions actually change
+  if (gaugeCanvas.width  !== Math.round(W * dpr) ||
+      gaugeCanvas.height !== Math.round(H * dpr)) {
+    gaugeCanvas.width  = Math.round(W * dpr);
+    gaugeCanvas.height = Math.round(H * dpr);
+  }
+
+  const ctx = gaugeCanvas.getContext('2d');
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  // Geometry
+  const cx      = W / 2;
+  const cy      = H - 4;
+  const r       = Math.min(cx - 14, H - 30);
+  const trackW  = Math.max(10, Math.round(r * 0.18));
+
+  // Zone boundary angles
+  const slowEnd = wpmToAngle(targetWpm * 0.80);
+  const okEnd   = wpmToAngle(targetWpm * 1.20);
+
+  // Background track
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI, false);
+  ctx.strokeStyle = '#2d3250';
+  ctx.lineWidth   = trackW;
+  ctx.lineCap     = 'butt';
+  ctx.stroke();
+
+  // Slow zone (amber)
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, slowEnd, false);
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth   = trackW;
+  ctx.stroke();
+
+  // OK zone (green)
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, slowEnd, okEnd, false);
+  ctx.strokeStyle = '#22c55e';
+  ctx.lineWidth   = trackW;
+  ctx.stroke();
+
+  // Fast zone (red)
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, okEnd, 2 * Math.PI, false);
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth   = trackW;
+  ctx.stroke();
+
+  // Target tick (white notch across the track)
+  const tAngle = wpmToAngle(targetWpm);
+  ctx.beginPath();
+  ctx.moveTo(cx + (r - trackW * 0.5 - 3) * Math.cos(tAngle),
+             cy + (r - trackW * 0.5 - 3) * Math.sin(tAngle));
+  ctx.lineTo(cx + (r + trackW * 0.5 + 3) * Math.cos(tAngle),
+             cy + (r + trackW * 0.5 + 3) * Math.sin(tAngle));
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth   = 2;
+  ctx.lineCap     = 'round';
+  ctx.stroke();
+
+  // Needle
+  const needleAngle = wpmToAngle(wpm);
+  const needleLen   = r - trackW - 4;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + needleLen * Math.cos(needleAngle),
+             cy + needleLen * Math.sin(needleAngle));
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'round';
+  ctx.stroke();
+
+  // Center hub
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5, 0, 2 * Math.PI);
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fill();
+
+  // WPM number (centred in the lower half of the arc)
+  const label    = liveWpm < 1 ? '—' : Math.round(wpm).toString();
+  const fontSize = Math.max(16, Math.round(r * 0.28));
+  ctx.fillStyle    = '#e2e8f0';
+  ctx.font         = `700 ${fontSize}px monospace`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, cx, cy - r * 0.38);
+
+  ctx.restore();
+}
+
+(function animateGauge() {
+  needleWpm += (liveWpm - needleWpm) * 0.08;
+  if (Math.abs(liveWpm - needleWpm) < 0.1) needleWpm = liveWpm;
+  redrawGauge(needleWpm);
+  requestAnimationFrame(animateGauge);
+}());
 
 // ─── Resize chart on window resize ───────────────────────────────────────────
 
