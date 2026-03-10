@@ -243,15 +243,10 @@ function onTick() {
   // Purge words older than the window (we keep them for session WPM; only filter for current WPM)
   const now = Date.now();
 
-  // Current WPM: words within the sliding window
+  // Current WPM: words within the trailing window, always divided by windowSize
   const windowMs      = windowSize * 1000;
   const wordsInWindow = wordBuffer.filter(w => now - w.ts <= windowMs);
-  // Effective window = min(windowSize, elapsed) to avoid inflating WPM at start
-  const effectiveWindowSec = Math.min(windowSize, elapsedSeconds);
-  const currentWpm =
-    effectiveWindowSec > 0
-      ? Math.round((wordsInWindow.length / effectiveWindowSec) * 60)
-      : 0;
+  const currentWpm    = Math.round((wordsInWindow.length / windowSize) * 60);
 
   updateGauge(currentWpm);
 
